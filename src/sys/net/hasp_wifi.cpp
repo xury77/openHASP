@@ -39,7 +39,9 @@ SPIClass espSPI(ESPSPI_MOSI, ESPSPI_MISO, ESPSPI_SCLK); // SPI port where esp is
 #endif
 // #include "DNSserver.h"
 
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
 #include "esp_arduino_version.h"
+#endif
 
 // ====================================================================================
 // CORE V3 COMPATIBILITY LAYER (REVISED)

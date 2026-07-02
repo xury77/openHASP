@@ -12,7 +12,9 @@
 #include "drv/tft/tft_driver.h"
 // #include "drv/touch/touch_driver.h"
 
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
 #include "esp_arduino_version.h"
+#endif
 
 #ifdef ARDUINO_ARCH_ESP8266
 #define INPUT_PULLDOWN INPUT

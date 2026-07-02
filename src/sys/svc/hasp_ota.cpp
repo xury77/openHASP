@@ -27,7 +27,10 @@
 #ifndef HASP_ARDUINOOTA_PORT
 #define HASP_ARDUINOOTA_PORT 3232
 #endif
+
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
 #include "esp_arduino_version.h"
+#endif
 
 #if HASP_USE_MDNS > 0
 #if defined(ARDUINO_ARCH_ESP32)
