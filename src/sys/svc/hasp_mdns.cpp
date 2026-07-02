@@ -98,6 +98,8 @@ bool mdns_remove_service(char* service, char* proto)
 #if ESP8266
     return MDNS.removeService(haspDevice.get_hostname(), "_arduino", "_tcp");
 #endif
+
+    return true;
 }
 
 IRAM_ATTR void mdnsLoop(void)

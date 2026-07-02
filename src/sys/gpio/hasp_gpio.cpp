@@ -12,6 +12,8 @@
 #include "drv/tft/tft_driver.h"
 // #include "drv/touch/touch_driver.h"
 
+#include "esp_arduino_version.h"
+
 #ifdef ARDUINO_ARCH_ESP8266
 #define INPUT_PULLDOWN INPUT
 #endif
@@ -290,8 +292,14 @@ static void gpio_setup_pin(uint8_t index)
             gpio->power = gpio->inverted; // gpio is off, state is set to reflect the true output state of the gpio
             gpio->val   = gpio->inverted ? 0 : gpio->max;
 #if defined(ARDUINO_ARCH_ESP32)
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+            // Core v3: Attaches and sets up the pin directly without exposing channels
+            if (!ledcAttach(gpio->pin, 20000, 10)) {
+                LOG_ERROR(TAG_GPIO, F("Failed to attach PWM to pin %d"), gpio->pin);
+            }
+#else
             if(pwm_channel < LEDC_CHANNEL_MAX) {
-                // configure LED PWM functionalitites
+                // configure LED PWM functionalities                // Core v2: Uses legacy channel configuration
                 ledcSetup(pwm_channel, 20000, 10);
                 // attach the channel to the GPIO to be controlled
                 ledcAttachPin(gpio->pin, pwm_channel);
@@ -299,7 +307,8 @@ static void gpio_setup_pin(uint8_t index)
             } else {
                 LOG_ERROR(TAG_GPIO, F("Too many PWM channels defined"));
             }
-#endif
+#endif // ESP_ARDUINO_VERSION
+#endif // ARDUINO_ARCH_ESP32
             break;
 
         case hasp_gpio_type_t::HASP_DAC:
@@ -491,7 +500,11 @@ static inline bool gpio_set_analog_value(hasp_gpio_config_t* gpio)
     if(!gpio->power) val = 0;
     if(gpio->inverted) val = 4095 - val;
 
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+    ledcWrite(gpio->pin, val); // 12 bits
+#else
     ledcWrite(gpio->channel, val); // 12 bits
+#endif
     return true;                   // sent
 
 #elif defined(ARDUINO_ARCH_ESP32)
@@ -504,7 +517,11 @@ static inline bool gpio_set_analog_value(hasp_gpio_config_t* gpio)
     if(!gpio->power) val = 0;
     if(gpio->inverted) val = 1023 - val;
 
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+    ledcWrite(gpio->pin, val); // 10 bits
+#else
     ledcWrite(gpio->channel, val); // 10 bits
+#endif
     return true;                   // sent
 
 #elif defined(ARDUINO_ARCH_ESP8266)

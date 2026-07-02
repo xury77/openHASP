@@ -247,12 +247,14 @@ void Esp32Device::set_backlight_pin(uint8_t pin)
     /* Setup Backlight Control Pin */
     if(pin < GPIO_NUM_MAX) {
         LOG_VERBOSE(TAG_GUI, F("Backlight  : Pin %d"), pin);
-#if !defined(CONFIG_IDF_TARGET_ESP32S2)
+#if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3, 0, 0)
         ledcSetup(BACKLIGHT_CHANNEL, BACKLIGHT_FREQUENCY, 10);
-#else
-        ledcSetup(BACKLIGHT_CHANNEL, BACKLIGHT_FREQUENCY, 10);
-#endif
         ledcAttachPin(pin, BACKLIGHT_CHANNEL);
+#else
+        if (!ledcAttach(_backlight_pin, BACKLIGHT_FREQUENCY, 10)) {
+            LOG_ERROR(TAG_GPIO, F("Failed to attach PWM to pin %d"), _backlight_pin);
+        }
+#endif
         update_backlight();
     } else {
         LOG_VERBOSE(TAG_GUI, F("Backlight  : Pin not set"));
@@ -295,10 +297,10 @@ bool Esp32Device::get_backlight_power()
 void Esp32Device::update_backlight()
 {
     if(_backlight_pin < GPIO_NUM_MAX) {
-#if !defined(CONFIG_IDF_TARGET_ESP32S2)
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
         uint32_t duty = _backlight_power ? map(_backlight_level, 0, 255, 0, 1023) : 0;
         if(_backlight_invert) duty = 1023 - duty;
-        ledcWrite(BACKLIGHT_CHANNEL, duty); // ledChannel and value
+        ledcWrite(_backlight_pin, duty); // ledChannel and value
 #else
         uint32_t duty = _backlight_power ? map(_backlight_level, 0, 255, 0, 1023) : 0;
         if(_backlight_invert) duty = 1023 - duty;

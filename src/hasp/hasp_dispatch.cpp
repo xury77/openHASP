@@ -49,14 +49,84 @@ static std::mutex deferred_mutex;
 
 dispatch_conf_t dispatch_setings = {.teleperiod = 300};
 
-uint16_t dispatchSecondsToNextTeleperiod = 0;
-uint16_t dispatchSecondsToNextSensordata = 0;
-uint16_t dispatchSecondsToNextDiscovery  = 0;
-uint8_t nCommands                        = 0;
-haspCommand_t commands[29];
+static uint16_t dispatchSecondsToNextTeleperiod = 0;
+static uint16_t dispatchSecondsToNextSensordata = 0;
+static uint16_t dispatchSecondsToNextDiscovery  = 0;
+// static uint8_t nCommands                        = 0;
+// // Only uses 4 bytes of static DRAM!
+// static haspCommand_t* commands = nullptr;
 
 moodlight_t moodlight    = {.brightness = 255};
 uint8_t saved_jsonl_page = 0;
+
+/* ===== Function Prototypes ===== */
+void dispatch_parse_json(const char*, const char*, uint8_t);
+void dispatch_parse_jsonl(const char*, const char*, uint8_t);
+void dispatch_page(const char*, const char*, uint8_t);
+void dispatch_backlight(const char*, const char*, uint8_t);
+void dispatch_moodlight(const char*, const char*, uint8_t);
+void dispatch_idle(const char*, const char*, uint8_t);
+void dispatch_sleep(const char*, const char*, uint8_t);
+void dispatch_statusupdate(const char*, const char*, uint8_t);
+void dispatch_clear_page(const char*, const char*, uint8_t);
+void dispatch_clear_font(const char*, const char*, uint8_t);
+void dispatch_send_sensordata(const char*, const char*, uint8_t);
+void dispatch_theme(const char*, const char*, uint8_t);
+void dispatch_run_script(const char*, const char*, uint8_t);
+#if HASP_TARGET_PC
+void dispatch_shell_execute(const char*, const char*, uint8_t);
+#endif
+void dispatch_service(const char*, const char*, uint8_t);
+void dispatch_antiburn(const char*, const char*, uint8_t);
+void dispatch_calibrate(const char*, const char*, uint8_t);
+void dispatch_web_update(const char*, const char*, uint8_t);
+void dispatch_reboot(const char*, const char*, uint8_t);
+void dispatch_screenshot(const char*, const char*, uint8_t);
+void dispatch_queue_discovery(const char*, const char*, uint8_t);
+void dispatch_factory_reset(const char*, const char*, uint8_t);
+void dispatch_wakeup_obsolete(const char*, const char*, uint8_t);
+
+// By adding static const, this entire table sits inside Flash (ROM) instead of DRAM!
+static const haspCommand_t commands[] = {
+    { "json", dispatch_parse_json },
+    { "jsonl", dispatch_parse_jsonl },
+    { "page", dispatch_page },
+    { "backlight", dispatch_backlight },
+    { "moodlight", dispatch_moodlight },
+    { "idle", dispatch_idle },
+    { "sleep", dispatch_sleep },
+    { "statusupdate", dispatch_statusupdate },
+    { "clearpage", dispatch_clear_page },
+    { "clearfont", dispatch_clear_font },
+    { "sensors", dispatch_send_sensordata },
+    { "theme", dispatch_theme },
+    { "run", dispatch_run_script },
+#if HASP_TARGET_PC
+    { "shell", dispatch_shell_execute },
+#endif
+    { "service", dispatch_service },
+    { "antiburn", dispatch_antiburn },
+    { "calibrate", dispatch_calibrate },
+    { "update", dispatch_web_update },
+    { "reboot", dispatch_reboot },
+    { "restart", dispatch_reboot }, // Maps to reboot
+    { "screenshot", dispatch_screenshot },
+    { "discovery", dispatch_queue_discovery },
+    { "factoryreset", dispatch_factory_reset },
+    { "wakeup", dispatch_wakeup_obsolete },
+#if HASP_USE_SPIFFS > 0 || HASP_USE_LITTLEFS > 0
+#if defined(ARDUINO_ARCH_ESP32)
+    { "unzip", filesystemUnzip },
+#endif
+#endif
+#if HASP_USE_CONFIG > 0 && HASP_TARGET_ARDUINO
+    { "setupap", oobeFakeSetup },
+#endif
+};
+
+// Calculate the number of commands automatically at compile time!
+static const size_t nCommands = sizeof(commands) / sizeof(haspCommand_t);
+
 
 /* Sends the payload out on the state/subtopic
  */
@@ -1636,69 +1706,79 @@ void dispatch_service(const char*, const char* payload, uint8_t source)
 
 /******************************************* Commands builder *******************************************/
 
-static void dispatch_add_command(const char* p_cmdstr, void (*func)(const char*, const char*, uint8_t))
-{
-    if(nCommands >= sizeof(commands) / sizeof(haspCommand_t)) {
-        LOG_FATAL(TAG_MSGR, F("CMD_OVERFLOW %d"), nCommands); // Needs to be in curly braces
-    } else {
-        commands[nCommands].p_cmdstr = p_cmdstr;
-        commands[nCommands].func     = func;
-        nCommands++;
-    }
-}
+// Re-introduce your allocation function, but use the dynamic heap (malloc)
+// static void dispatch_add_command(const char* p_cmdstr, void (*func)(const char*, const char*, uint8_t))
+// {
+//     // Grow the command array dynamically in heap RAM
+//     nCommands++;
+//     commands = (haspCommand_t*)realloc(commands, nCommands * sizeof(haspCommand_t));
+//     commands[nCommands - 1].p_cmdstr = p_cmdstr;
+//     commands[nCommands - 1].func     = func;
+// }
+
+// static void dispatch_add_command(const char* p_cmdstr, void (*func)(const char*, const char*, uint8_t))
+// {
+//     if(nCommands >= sizeof(commands) / sizeof(haspCommand_t)) {
+//         LOG_FATAL(TAG_MSGR, F("CMD_OVERFLOW %d"), nCommands); // Needs to be in curly braces
+//     } else {
+//         commands[nCommands].p_cmdstr = p_cmdstr;
+//         commands[nCommands].func     = func;
+//         nCommands++;
+//     }
+// }
 
 void dispatchSetup()
 {
-    // In order of importance : commands are NOT case-sensitive
-    // The command.func() call will receive the full topic and payload parameters!
+//     // In order of importance : commands are NOT case-sensitive
+//     // The command.func() call will receive the full topic and payload parameters!
 
-    LOG_TRACE(TAG_MSGR, F(D_SERVICE_STARTING));
+//     LOG_TRACE(TAG_MSGR, F(D_SERVICE_STARTING));
 
-    /* WARNING: remember to expand the commands array when adding new commands */
-    dispatch_add_command(PSTR("json"), dispatch_parse_json);
-    dispatch_add_command(PSTR("jsonl"), dispatch_parse_jsonl);
-    dispatch_add_command(PSTR("page"), dispatch_page);
-    dispatch_add_command(PSTR("backlight"), dispatch_backlight);
-    dispatch_add_command(PSTR("moodlight"), dispatch_moodlight);
-    dispatch_add_command(PSTR("idle"), dispatch_idle);
-    dispatch_add_command(PSTR("sleep"), dispatch_sleep);
-    dispatch_add_command(PSTR("statusupdate"), dispatch_statusupdate);
-    dispatch_add_command(PSTR("clearpage"), dispatch_clear_page);
-    dispatch_add_command(PSTR("clearfont"), dispatch_clear_font);
-    dispatch_add_command(PSTR("sensors"), dispatch_send_sensordata);
-    dispatch_add_command(PSTR("theme"), dispatch_theme);
-    dispatch_add_command(PSTR("run"), dispatch_run_script);
-    // dispatch_add_command(PSTR("fs"), dispatch_fs);
-#if HASP_TARGET_PC
-    dispatch_add_command(PSTR("shell"), dispatch_shell_execute);
-#endif
-    dispatch_add_command(PSTR("service"), dispatch_service);
-    dispatch_add_command(PSTR("antiburn"), dispatch_antiburn);
-    dispatch_add_command(PSTR("calibrate"), dispatch_calibrate);
-    dispatch_add_command(PSTR("update"), dispatch_web_update);
-    dispatch_add_command(PSTR("reboot"), dispatch_reboot);
-    dispatch_add_command(PSTR("restart"), dispatch_reboot);
-    dispatch_add_command(PSTR("screenshot"), dispatch_screenshot);
-    dispatch_add_command(PSTR("discovery"), dispatch_queue_discovery);
-    dispatch_add_command(PSTR("factoryreset"), dispatch_factory_reset);
+//     /* WARNING: remember to expand the commands array when adding new commands */
+//     dispatch_add_command(PSTR("json"), dispatch_parse_json);
+//     dispatch_add_command(PSTR("jsonl"), dispatch_parse_jsonl);
+//     dispatch_add_command(PSTR("page"), dispatch_page);
+//     dispatch_add_command(PSTR("backlight"), dispatch_backlight);
+//     dispatch_add_command(PSTR("moodlight"), dispatch_moodlight);
+//     dispatch_add_command(PSTR("idle"), dispatch_idle);
+//     dispatch_add_command(PSTR("sleep"), dispatch_sleep);
+//     dispatch_add_command(PSTR("statusupdate"), dispatch_statusupdate);
+//     dispatch_add_command(PSTR("clearpage"), dispatch_clear_page);
+//     dispatch_add_command(PSTR("clearfont"), dispatch_clear_font);
+//     dispatch_add_command(PSTR("sensors"), dispatch_send_sensordata);
+//     dispatch_add_command(PSTR("theme"), dispatch_theme);
+//     dispatch_add_command(PSTR("run"), dispatch_run_script);
+//     // dispatch_add_command(PSTR("fs"), dispatch_fs);
+// #if HASP_TARGET_PC
+//     dispatch_add_command(PSTR("shell"), dispatch_shell_execute);
+// #endif
+//     dispatch_add_command(PSTR("service"), dispatch_service);
+//     dispatch_add_command(PSTR("antiburn"), dispatch_antiburn);
+//     dispatch_add_command(PSTR("calibrate"), dispatch_calibrate);
+//     dispatch_add_command(PSTR("update"), dispatch_web_update);
+//     dispatch_add_command(PSTR("reboot"), dispatch_reboot);
+//     dispatch_add_command(PSTR("restart"), dispatch_reboot);
+//     dispatch_add_command(PSTR("screenshot"), dispatch_screenshot);
+//     dispatch_add_command(PSTR("discovery"), dispatch_queue_discovery);
+//     dispatch_add_command(PSTR("factoryreset"), dispatch_factory_reset);
 
-    /* obsolete commands */
-    // dispatch_add_command(PSTR("dim"), dispatch_backlight_obsolete);
-    // dispatch_add_command(PSTR("brightness"), dispatch_backlight_obsolete);
-    // dispatch_add_command(PSTR("light"), dispatch_backlight_obsolete);
-    dispatch_add_command(PSTR("wakeup"), dispatch_wakeup_obsolete); // used in CC
+//     /* obsolete commands */
+//     // dispatch_add_command(PSTR("dim"), dispatch_backlight_obsolete);
+//     // dispatch_add_command(PSTR("brightness"), dispatch_backlight_obsolete);
+//     // dispatch_add_command(PSTR("light"), dispatch_backlight_obsolete);
+//     dispatch_add_command(PSTR("wakeup"), dispatch_wakeup_obsolete); // used in CC
 
-#if HASP_USE_SPIFFS > 0 || HASP_USE_LITTLEFS > 0
-#if defined(ARDUINO_ARCH_ESP32)
-    dispatch_add_command(PSTR("unzip"), filesystemUnzip);
-#endif
-#endif
-#if HASP_USE_CONFIG > 0 && HASP_TARGET_ARDUINO
-    dispatch_add_command(PSTR("setupap"), oobeFakeSetup);
-#endif
-    /* WARNING: remember to expand the commands array when adding new commands */
+// #if HASP_USE_SPIFFS > 0 || HASP_USE_LITTLEFS > 0
+// #if defined(ARDUINO_ARCH_ESP32)
+//     dispatch_add_command(PSTR("unzip"), filesystemUnzip);
+// #endif
+// #endif
+// #if HASP_USE_CONFIG > 0 && HASP_TARGET_ARDUINO
+//     dispatch_add_command(PSTR("setupap"), oobeFakeSetup);
+// #endif
+//     /* WARNING: remember to expand the commands array when adding new commands */
 
-    LOG_INFO(TAG_MSGR, F(D_SERVICE_STARTED));
+//     LOG_INFO(TAG_MSGR, F(D_SERVICE_STARTED));
 }
 
 IRAM_ATTR void dispatchLoop()

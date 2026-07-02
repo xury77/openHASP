@@ -99,24 +99,24 @@ extern const uint8_t EN_JSON_GZ_END[] asm("_binary_data_static_en_json_gz_end");
 
 HTTPUpload* upload;
 
-const char MAIN_MENU_BUTTON[] PROGMEM = "<a href='/'>" D_HTTP_MAIN_MENU "</a>";
+static const char MAIN_MENU_BUTTON[] PROGMEM = "<a href='/'>" D_HTTP_MAIN_MENU "</a>";
 
-const char HTTP_DOCTYPE[] PROGMEM =
+static const char HTTP_DOCTYPE[] PROGMEM =
     "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">"
     //  "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self';img-src "
     //  "'self' data:;style-src 'self' data:;\">"
     "<meta charset='utf-8'><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>";
-const char HTTP_META_GO_BACK[] PROGMEM = "<meta http-equiv='refresh' content='%d;url=/'/>";
-const char HTTP_STYLESHEET[] PROGMEM   = "<link rel=\"stylesheet\" href=\"/%s.css?" COMMIT_HASH "\">";
-const char HTTP_HEADER[] PROGMEM       = "<title>%s</title>";
-const char HTTP_HEADER_END[] PROGMEM =
+static const char HTTP_META_GO_BACK[] PROGMEM = "<meta http-equiv='refresh' content='%d;url=/'/>";
+static const char HTTP_STYLESHEET[] PROGMEM   = "<link rel=\"stylesheet\" href=\"/%s.css?" COMMIT_HASH "\">";
+static const char HTTP_HEADER[] PROGMEM       = "<title>%s</title>";
+static const char HTTP_HEADER_END[] PROGMEM =
     "<link rel=\"stylesheet\" href=\"/static/style.css?" COMMIT_HASH "\"></head>"
     "<link rel=\"icon\" href=\"/static/logo.svg?" COMMIT_HASH "\" type=\"image/svg+xml\">"
     "<script type=\"module\" src=\"/static/main.js?" COMMIT_HASH "\"></script>"
     R"(<style>[v-cloak]{display:none}</style><body><div v-cloak v-scope @vue:mounted="mounted" id='doc'>)";
-const char HTTP_FOOTER[] PROGMEM      = "<div class='clear'><hr/><a class='foot' href='/about'>" D_MANUFACTURER " ";
-const char HTTP_END[] PROGMEM         = " " D_HTTP_FOOTER "</div></body></html>";
-const uint8_t HTTP_VARS_CSS[] PROGMEM = ":root{"
+static const char HTTP_FOOTER[] PROGMEM      = "<div class='clear'><hr/><a class='foot' href='/about'>" D_MANUFACTURER " ";
+static const char HTTP_END[] PROGMEM         = " " D_HTTP_FOOTER "</div></body></html>";
+static const uint8_t HTTP_VARS_CSS[] PROGMEM = ":root{"
                                         "--txt:" D_HTTP_COLOR_TEXT ";"
                                         "--bg:" D_HTTP_COLOR_BACKGROUND ";"
                                         "--btnfg:" D_HTTP_COLOR_BUTTON_TEXT ";"

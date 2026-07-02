@@ -307,8 +307,8 @@ static lv_fs_res_t fs_trunc(lv_fs_drv_t* drv, void* file_p)
 static lv_fs_res_t fs_rename(lv_fs_drv_t* drv, const char* oldname, const char* newname)
 {
     (void)drv; /*Unused*/
-    static char new[512];
-    static char old[512];
+    char new[256];
+    char old[256];
 
     sprintf(old, "%s/%s", drv->user_data, oldname);
     sprintf(new, "%s/%s", drv->user_data, newname);

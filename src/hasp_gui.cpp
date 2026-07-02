@@ -31,7 +31,7 @@ bool gui_pop_screenshot_request(void);
 #include <limits.h>
 #endif
 
-#if ESP32
+#if defined(ESP32)
 static SemaphoreHandle_t xGuiSemaphore = NULL;
 static TaskHandle_t g_lvgl_task_handle;
 #endif

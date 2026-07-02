@@ -51,6 +51,7 @@
 #include "esp_netif.h"
 
 #include "esp32-hal-log.h"
+#include "esp_idf_version.h"
 
 #define WIREGUARDIF_TIMER_MSECS 400
 
@@ -920,8 +921,15 @@ err_t wireguardif_init(struct netif *netif) {
 	uint8_t private_key[WIREGUARD_PRIVATE_KEY_LEN];
 	size_t private_key_len = sizeof(private_key);
 
-	struct netif* underlying_netif;
-	tcpip_adapter_get_netif(TCPIP_ADAPTER_IF_STA, (void **)&underlying_netif);
+	#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
+		// Legacy ESP-IDF v4 / Arduino v2 approach
+		struct netif* underlying_netif;
+		tcpip_adapter_get_netif(TCPIP_ADAPTER_IF_STA, (void **)&underlying_netif);
+	#else
+		// Modern ESP-IDF v5 / Arduino v3 approach
+		struct netif* underlying_netif = netif_default; 
+	#endif
+
 	log_i(TAG "underlying_netif = %p", underlying_netif);
 
 	LWIP_ASSERT("netif != NULL", (netif != NULL));

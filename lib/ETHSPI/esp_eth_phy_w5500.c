@@ -241,7 +241,9 @@ esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config)
     w5500->parent.init = w5500_init;
     w5500->parent.deinit = w5500_deinit;
     w5500->parent.set_mediator = w5500_set_mediator;
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
     w5500->parent.negotiate = w5500_negotiate;
+#endif
     w5500->parent.get_link = w5500_get_link;
     w5500->parent.pwrctl = w5500_pwrctl;
     w5500->parent.get_addr = w5500_get_addr;

@@ -6,6 +6,8 @@
 #include "hasplib.h"
 #include "hasp_nvs.h"
 
+#include "esp_idf_version.h"
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 bool nvs_user_begin(Preferences& preferences, const char* key, bool readonly)
@@ -24,7 +26,7 @@ bool nvs_user_begin(Preferences& preferences, const char* key, bool readonly)
 
 bool nvs_clear_user_config()
 {
-    const char* name[] = {FP_TIME, FP_OTA, FP_HTTP, FP_FTP, FP_MQTT, FP_WIFI, FP_WG};
+    static const char* name[] = {FP_TIME, FP_OTA, FP_HTTP, FP_FTP, FP_MQTT, FP_WIFI, FP_WG};
     Preferences preferences;
     bool state = true;
 
@@ -132,9 +134,6 @@ struct nvs_page // For nvs entries
     nvs_entry Entry[126];
 };
 
-// Common data
-nvs_page buf;
-
 //**************************************************************************************************
 //                                          D B G P R I N T                                        *
 //**************************************************************************************************
@@ -157,46 +156,6 @@ char* dbgprint(const char* format, ...)
     return sbuf; // Return stored string
 }
 
-//**************************************************************************************************
-//                                   F I N D N S I D                                               *
-//**************************************************************************************************
-// Find the namespace ID for the namespace passed as parameter.                                    *
-//**************************************************************************************************
-uint8_t FindNsID(const esp_partition_t* nvs, const char* ns)
-{
-    esp_err_t result = ESP_OK; // Result of reading partition
-    uint32_t offset  = 0;      // Offset in nvs partition
-    uint8_t i;                 // Index in Entry 0..125
-    uint8_t bm;                // Bitmap for an entry
-    uint8_t res = 0xFF;        // Function result
-
-    while(offset < nvs->size) {
-        result = esp_partition_read(nvs, offset, // Read 1 page in nvs partition
-                                    &buf, sizeof(nvs_page));
-        if(result != ESP_OK) {
-            dbgprint("Error reading NVS!");
-            break;
-        }
-        i = 0;
-        while(i < 126) {
-            bm = (buf.Bitmap[i / 4] >> ((i % 4) * 2)) & 0x03; // Get bitmap for this entry
-            if((bm == 2) && (buf.Entry[i].Ns == 0) && (strcmp(ns, buf.Entry[i].Key) == 0)) {
-                res    = buf.Entry[i].Data & 0xFF; // Return the ID
-                offset = nvs->size;                // Stop outer loop as well
-                break;
-            } else {
-                if(bm == 2) {
-                    i += buf.Entry[i].Span; // Next entry
-                } else {
-                    i++;
-                }
-            }
-        }
-        offset += sizeof(nvs_page); // Prepare to read next page in nvs
-    }
-    return res;
-}
-
 void nvs_setup()
 {
     /*
@@ -212,6 +171,8 @@ void nvs_setup()
     nvs_release_iterator(it);
     */
 
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
+    // Legacy ESP-IDF v4 implementation
     nvs_iterator_t it = nvs_entry_find("config", NULL, NVS_TYPE_ANY);
     nvs_entry_info_t info;
 
@@ -220,6 +181,22 @@ void nvs_setup()
         printf("%s::%s type=%d\n", info.namespace_name, info.key, info.type);
         it = nvs_entry_next(it);
     }
+#else
+    // Modern ESP-IDF v5 implementation
+    nvs_iterator_t it = NULL;
+    nvs_entry_info_t info;
+    esp_err_t res = nvs_entry_find("nvs", "config", NVS_TYPE_ANY, &it); // Note: explicit partition + namespace
+
+    while(res == ESP_OK && it != NULL) {
+        nvs_entry_info(it, &info);
+        printf("%s::%s type=%d\n", info.namespace_name, info.key, info.type);
+        res = nvs_entry_next(&it); // Modifies 'it' in-place via pointer
+    }
+    
+    if (it != NULL) {
+        nvs_release_iterator(it);
+    }
+#endif
 
     // Example of nvs_get_stats() to get the number of used entries and free entries:
     nvs_stats_t nvs_stats;
@@ -258,69 +235,6 @@ void nvs_setup()
             oldPrefs.end();
             newPrefs.end();
         }
-    }
-}
-
-//**************************************************************************************************
-//                                          S E T U P                                              *
-//**************************************************************************************************
-//**************************************************************************************************
-void nvs_setup2()
-{
-    esp_partition_iterator_t pi; // Iterator for find
-    const esp_partition_t* nvs;  // Pointer to partition struct
-    esp_err_t result     = ESP_OK;
-    const char* partname = "nvs";
-    uint8_t pagenr       = 0; // Page number in NVS
-    uint8_t i;                // Index in Entry 0..125
-    uint8_t bm;               // Bitmap for an entry
-    uint32_t offset = 0;      // Offset in nvs partition
-    uint8_t namespace_ID;     // Namespace ID found
-
-    Serial.begin(115200); // For debug
-    Serial.println();
-    pi = esp_partition_find(ESP_PARTITION_TYPE_DATA,   // Get partition iterator for
-                            ESP_PARTITION_SUBTYPE_ANY, // this partition
-                            partname);
-    if(pi) {
-        nvs = esp_partition_get(pi);        // Get partition struct
-        esp_partition_iterator_release(pi); // Release the iterator
-        dbgprint("Partition %s found, %d bytes", partname, nvs->size);
-    } else {
-        dbgprint("Partition %s not found!", partname);
-        return;
-    }
-    namespace_ID = FindNsID(nvs, FP_MQTT); // Find ID of our namespace in NVS
-    dbgprint("Namespace ID of ESP32Radio is %d", namespace_ID);
-    while(offset < nvs->size) {
-        result = esp_partition_read(nvs, offset, // Read 1 page in nvs partition
-                                    &buf, sizeof(nvs_page));
-        if(result != ESP_OK) {
-            dbgprint("Error reading NVS!");
-            return;
-        }
-        // dbgprint ( "" ) ;
-        // dbgprint ( "Dump page %d", pagenr ) ;
-        // dbgprint ( "State is %08X", buf.State ) ;
-        // dbgprint ( "Seqnr is %08X", buf.Seqnr ) ;
-        // dbgprint ( "CRC   is %08X", buf.CRC ) ;
-        i = 0;
-        while(i < 126) {
-            bm = (buf.Bitmap[i / 4] >> ((i % 4) * 2)) & 0x03; // Get bitmap for this entry
-            if(bm == 2) {
-                if((namespace_ID == 0xFF) ||          // Show all if ID = 0xFF
-                   (buf.Entry[i].Ns == namespace_ID)) // otherwise just my namespace
-                {
-                    dbgprint("Key %03d: %s", i, // Print entrynr
-                             buf.Entry[i].Key); // Print the key
-                }
-                i += buf.Entry[i].Span; // Next entry
-            } else {
-                i++;
-            }
-        }
-        offset += sizeof(nvs_page); // Prepare to read next page in nvs
-        pagenr++;
     }
 }
 

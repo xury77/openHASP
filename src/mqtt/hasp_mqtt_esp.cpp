@@ -24,6 +24,7 @@
 
 #include "esp_http_server.h"
 #include "esp_tls.h"
+#include "esp_idf_version.h"
 
 #define MQTT_DEFAULT_NODE_TOPIC MQTT_PREFIX "/%hostname%/%topic%"
 #define MQTT_DEFAULT_GROUP_TOPIC MQTT_PREFIX "/" MQTT_GROUPNAME "/%topic%"
@@ -420,8 +421,15 @@ static void onMqttSubscribed(esp_mqtt_event_handle_t event)
     LOG_VERBOSE(TAG_MQTT, F(D_BULLET D_MQTT_SUBSCRIBED "(%d)"), topic, event->msg_id);
 }
 
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+{
+    esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
+#else
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
+#endif
+
     // LOG_WARNING(TAG_MQTT, "mqtt_event_handler %d", event->event_id);
 
     int msg_id;
@@ -481,7 +489,9 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         default:
             LOG_WARNING(TAG_MQTT, "mqtt_event_handler %d", event->event_id);
     }
+#if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3, 0, 0)
     return ESP_OK;
+#endif
 }
 
 void mqttSetup()
@@ -585,6 +595,11 @@ void mqttStart()
         LOG_INFO(TAG_MQTT, mqttClientId);
     }
 
+    // Clear and build the config structure based on core version
+    memset(&mqtt_cfg, 0, sizeof(mqtt_cfg));
+
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
+    // Legacy ESP-IDF v4 flat configuration layout
     mqtt_cfg.event_handle           = mqtt_event_handler;
     mqtt_cfg.buffer_size            = MQTT_MAX_PACKET_SIZE;
     mqtt_cfg.out_buffer_size        = 512;
@@ -593,20 +608,43 @@ void mqttStart()
     mqtt_cfg.keepalive              = 15; /* seconds */
     mqtt_cfg.disable_clean_session  = true;
 
-    mqtt_cfg.protocol_ver = MQTT_PROTOCOL_V_3_1_1;
-    mqtt_cfg.transport    = MQTT_TRANSPORT_OVER_TCP;
-    mqtt_cfg.host         = mqttServer.c_str();
-    mqtt_cfg.port         = mqttPort;
-    mqtt_cfg.username     = mqttUsername.c_str();
-    mqtt_cfg.password     = mqttPassword.c_str();
-    mqtt_cfg.client_id    = mqttClientId;
+    mqtt_cfg.protocol_ver           = MQTT_PROTOCOL_V_3_1_1;
+    mqtt_cfg.transport              = MQTT_TRANSPORT_OVER_TCP;
+    mqtt_cfg.host                   = mqttServer.c_str();
+    mqtt_cfg.port                   = mqttPort;
+    mqtt_cfg.username               = mqttUsername.c_str();
+    mqtt_cfg.password               = mqttPassword.c_str();
+    mqtt_cfg.client_id              = mqttClientId;
 
-    mqtt_cfg.lwt_msg    = "offline";
-    mqtt_cfg.lwt_retain = true;
-    mqtt_cfg.lwt_topic  = mqttNodeLwtTopic.c_str();
-    mqtt_cfg.lwt_qos    = 1;
-
-    mqtt_cfg.task_prio = 1;
+    mqtt_cfg.lwt_msg                = "offline";
+    mqtt_cfg.lwt_retain             = true;
+    mqtt_cfg.lwt_topic              = mqttNodeLwtTopic.c_str();
+    mqtt_cfg.lwt_qos                = 1;
+    mqtt_cfg.task_prio              = 1;
+#else
+    // Modern ESP-IDF v5 nested configuration layout
+    mqtt_cfg.buffer.size                    = MQTT_MAX_PACKET_SIZE;
+    mqtt_cfg.buffer.out_size                = 512;
+    mqtt_cfg.network.reconnect_timeout_ms   = 5000;
+    mqtt_cfg.network.disable_auto_reconnect = false;
+    mqtt_cfg.session.keepalive              = 15;
+    mqtt_cfg.session.disable_clean_session  = true;
+    mqtt_cfg.session.protocol_ver           = MQTT_PROTOCOL_V_3_1_1;
+    
+    mqtt_cfg.broker.address.transport       = MQTT_TRANSPORT_OVER_TCP;
+    mqtt_cfg.broker.address.hostname        = mqttServer.c_str();
+    mqtt_cfg.broker.address.port            = mqttPort;
+    
+    mqtt_cfg.credentials.username           = mqttUsername.c_str();
+    mqtt_cfg.credentials.authentication.password = mqttPassword.c_str();
+    mqtt_cfg.credentials.client_id          = mqttClientId;
+    
+    mqtt_cfg.session.last_will.msg          = "offline";
+    mqtt_cfg.session.last_will.retain       = true;
+    mqtt_cfg.session.last_will.topic        = mqttNodeLwtTopic.c_str();
+    mqtt_cfg.session.last_will.qos          = 1;
+    mqtt_cfg.task.priority                  = 1;
+#endif
 
     // mqtt_cfg.crt_bundle_attach = esp_crt_bundle_attach;
 
@@ -618,7 +656,17 @@ void mqttStart()
         esp_mqtt_set_config(mqttClient, &mqtt_cfg);
     } else {
         mqttClient = esp_mqtt_client_init(&mqtt_cfg);
-        if(esp_mqtt_client_start(mqttClient) != ESP_OK) {
+        
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        // In v5, event loop handler registration must happen explicitly 
+        if (mqttClient) {
+            esp_mqtt_event_id_t event_id = (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID;
+            esp_event_handler_t event_handler = mqtt_event_handler;
+            esp_mqtt_client_register_event(mqttClient, event_id, event_handler, NULL);
+        }
+#endif
+
+    if(esp_mqtt_client_start(mqttClient) != ESP_OK) {
             LOG_WARNING(TAG_MQTT, F(D_SERVICE_START_FAILED));
             return;
         }
@@ -640,7 +688,11 @@ void mqttStop()
         }
         mqtt_send_lwt(false);
         // esp_err_t err = esp_mqtt_client_stop(mqttClient); // Cannot be called from the *MQTT* event handler
-        mqtt_cfg.disable_auto_reconnect = true;
+        #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+            mqtt_cfg.network.disable_auto_reconnect = true;
+        #else
+            mqtt_cfg.disable_auto_reconnect = true;
+        #endif
         esp_mqtt_set_config(mqttClient, &mqtt_cfg);
         esp_err_t err = esp_mqtt_client_disconnect(mqttClient);
         if(err == ESP_OK) {

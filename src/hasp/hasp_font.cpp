@@ -168,7 +168,7 @@ static lv_font_t* font_add_to_list(const char* payload)
     uint8_t font_type = 0;
 
 #if defined(ARDUINO_ARCH_ESP32) && (HASP_USE_FREETYPE > 0)
-    char* ext[] = {"ttf", "otf"};
+    const char* ext[] = {"ttf", "otf"};
     for(size_t i = 0; i < 2; i++) {
         if(!font) {
 

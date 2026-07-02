@@ -1,8 +1,10 @@
 # openHASP Changelog
 
-## v0.7.0
+## v0.7.1
 
+- Optimizations of system memory usage
 - Updated ArduinoJson library to v7.4.3
+- Updates for compatibility with Arduino Release v3.3.9 based on ESP-IDF v5.5.4
 
 ## v0.7.0
 
