@@ -316,7 +316,7 @@ DeserializationError configRead(JsonDocument& settings, bool setupdebug)
         // Output settings in log with masked passwords
         configMaskPasswords(settings);
         serializeJson(settings, output);
-        LOG_VERBOSE(TAG_CONF, output.c_str());
+        LOG_VERBOSE(TAG_CONF, "%s", output.c_str());
 
         configRestorePasswords(settings, wifiPass, mqttPass, httpPass, wgPrivKey);
         LOG_INFO(TAG_CONF, F(D_FILE_LOADED), configFile.c_str());
