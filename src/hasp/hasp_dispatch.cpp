@@ -213,7 +213,7 @@ void dispatch_state_val(const char* topic, hasp_event_t eventid, int32_t val)
 
 void dispatch_json_error(uint8_t tag, DeserializationError& jsonError)
 {
-    LOG_ERROR(tag, F(D_JSON_FAILED " %d"), jsonError);
+    LOG_ERROR(tag, F(D_JSON_FAILED " %s"), jsonError.c_str());
     // const char * error = jsonError.c_str();
     // LOG_ERROR(tag, F(D_JSON_FAILED " %s"), error);
 }

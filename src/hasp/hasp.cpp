@@ -92,7 +92,7 @@ lv_obj_t* kb;
 // lv_font_t * defaultFont;
 
 // static lv_font_t* haspFonts[12] = {nullptr};
-static lv_font_t* haspFonts[12] __NOINIT_ATTR;
+static lv_font_t* haspFonts[12];
 uint8_t current_page            = 1;
 
 /**
