@@ -1,4 +1,4 @@
-/* MIT License - Copyright (c) 2019-2024 Francis Van Roie
+/* MIT License - Copyright (c) 2019-2026 Francis Van Roie
    For full license information read the LICENSE file in the project folder */
 
 #include "hasp_conf.h"
@@ -70,7 +70,7 @@ void mdnsStart()
         strcpy_P(service, PSTR("openhasp"));
         MDNS.addService(service, proto, 80);
 
-        JsonDocument doc;
+        JsonDocument doc(&haspJsonAllocator);
         dispatch_get_discovery_data(doc);
 
         JsonObject data = doc.as<JsonObject>();

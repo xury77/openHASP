@@ -1,4 +1,4 @@
-/* MIT License - Copyright (c) 2019-2024 Francis Van Roie
+/* MIT License - Copyright (c) 2019-2026 Francis Van Roie
    For full license information read the LICENSE file in the project folder */
 
 #include "hasplib.h"
@@ -559,6 +559,7 @@ void hasp_set_theme(uint8_t themeid)
  */
 void haspSetup(void)
 {
+    hasp_mem_setup(); // Setup memory allocators for PSRAM if available
     haspDevice.set_backlight_level(haspStartDim);
 
     /******* File System Test ********************************************************************/

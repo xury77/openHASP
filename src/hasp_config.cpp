@@ -1,4 +1,4 @@
-/* MIT License - Copyright (c) 2019-2024 Francis Van Roie
+/* MIT License - Copyright (c) 2019-2026 Francis Van Roie
    For full license information read the LICENSE file in the project folder */
 
 #if HASP_USE_CONFIG > 0
@@ -396,7 +396,7 @@ void configWrite()
     settingsChanged = F(D_CONFIG_CHANGED);
 
     /* Read Config File */
-    JsonDocument doc;
+    JsonDocument doc(&haspJsonAllocator);
     LOG_TRACE(TAG_CONF, F(D_FILE_LOADING), configFile.c_str());
     configRead(doc, false);
     LOG_INFO(TAG_CONF, F(D_FILE_LOADED), configFile.c_str());
@@ -563,7 +563,7 @@ void configWrite()
 
 void configSetup()
 {
-    JsonDocument settings;
+    JsonDocument settings(&haspJsonAllocator);
 
     for(uint32_t i = 0; i < 2; i++) {
         if(i == 0) {

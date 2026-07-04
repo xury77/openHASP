@@ -1,4 +1,4 @@
-/* MIT License - Copyright (c) 2019-2024 Francis Van Roie
+/* MIT License - Copyright (c) 2019-2026 Francis Van Roie
    For full license information read the LICENSE file in the project folder */
 
 #include "hasplib.h"
@@ -98,7 +98,7 @@ const char** my_map_create(const char* payload)
 {
     // Reserve memory for JsonDocument
     // JsonDocument map_doc;
-    JsonDocument map_doc;
+    JsonDocument map_doc(&haspJsonAllocator);
     DeserializationError jsonError = deserializeJson(map_doc, payload);
 
     if(jsonError) { // Couldn't parse incoming JSON payload
@@ -205,7 +205,7 @@ static bool my_line_set_points(lv_obj_t* obj, const char* payload)
     LOG_VERBOSE(TAG_ATTR,"payload: %s",payload);
     LOG_TRACE(TAG_ATTR,"count: %u",count);
 
-    JsonDocument doc;
+    JsonDocument doc(&haspJsonAllocator);
     DeserializationError jsonError = deserializeJson(doc, payload);
 
     if(jsonError) { // Couldn't parse incoming JSON payload
@@ -1705,7 +1705,7 @@ static hasp_attribute_type_t attribute_common_json(lv_obj_t* obj, uint16_t attr_
 
             if(update) {
 
-                JsonDocument json;
+                JsonDocument json(&haspJsonAllocator);
 
                 // Note: Deserialization can to be (char *) so the objects WILL NOT be copied
                 // this uses less memory since the data is already copied from the mqtt receive buffer and cannot

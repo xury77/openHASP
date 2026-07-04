@@ -1,4 +1,4 @@
-/* MIT License - Copyright (c) 2019-2024 Francis Van Roie
+/* MIT License - Copyright (c) 2019-2026 Francis Van Roie
    For full license information read the LICENSE file in the project folder */
 
 #if HASP_USE_NULL_DRIVER && HASP_TARGET_PC

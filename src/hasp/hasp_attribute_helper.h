@@ -1,4 +1,4 @@
-/* MIT License - Copyright (c) 2019-2024 Francis Van Roie
+/* MIT License - Copyright (c) 2019-2026 Francis Van Roie
    For full license information read the LICENSE file in the project folder */
 
 #include "hasplib.h"
@@ -122,7 +122,7 @@ void my_obj_set_tag(lv_obj_t* obj, const char* payload)
 
     if(ext) {
         // create new tag
-        JsonDocument doc;
+        JsonDocument doc(&haspJsonAllocator);
         size_t len = payload ? strlen(payload) : 0;
 
         // check if it is a proper JSON object
@@ -172,7 +172,7 @@ void my_obj_set_action(lv_obj_t* obj, const char* payload)
 
     // create new action
     if(ext) {
-        JsonDocument doc;
+        JsonDocument doc(&haspJsonAllocator);
         size_t len  = payload ? strlen(payload) : 0;
         ext->action = NULL;
 
@@ -258,7 +258,7 @@ void my_obj_set_swipe(lv_obj_t* obj, const char* payload)
         }
 
         // create new action
-        JsonDocument doc;
+        JsonDocument doc(&haspJsonAllocator);
         size_t len = payload ? strlen(payload) : 0;
         ext->swipe = NULL;
 
@@ -720,7 +720,7 @@ void my_obj_set_value_str_text(lv_obj_t* obj, uint8_t part, lv_state_t state, co
 
 void my_list_set_options(lv_obj_t* obj, const char* payload)
 { // Reserve memory for JsonDocument
-    JsonDocument doc;
+    JsonDocument doc(&haspJsonAllocator);
     DeserializationError jsonError = deserializeJson(doc, payload);
 
     if(jsonError) { // Couldn't parse incoming JSON payload

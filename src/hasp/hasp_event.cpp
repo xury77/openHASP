@@ -1,4 +1,4 @@
-/* MIT License - Copyright (c) 2019-2024 Francis Van Roie
+/* MIT License - Copyright (c) 2019-2026 Francis Van Roie
    For full license information read the LICENSE file in the project folder */
 
 /* ********************************************************************************************
@@ -44,7 +44,7 @@ void event_reset_last_value_sent()
 
 void script_event_handler(const char* eventname, const char* json)
 {
-    JsonDocument doc;
+    JsonDocument doc(&haspJsonAllocator);
     JsonDocument filter;
 
     filter[eventname]              = true;
@@ -297,7 +297,7 @@ static void event_object_selection_changed(lv_obj_t* obj, uint8_t eventid, int16
 {
     char data[512];
     {
-        JsonDocument doc;
+        JsonDocument doc(&haspJsonAllocator);
         size_t len = text ? strlen(text) : 0;
         doc.set(text); // use text as-is
         char serialized_text[256];

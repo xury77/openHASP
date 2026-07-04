@@ -1,4 +1,4 @@
-/* MIT License - Copyright (c) 2019-2024 Francis Van Roie
+/* MIT License - Copyright (c) 2019-2026 Francis Van Roie
    For full license information read the LICENSE file in the project folder */
 
 #include "hasplib.h"
@@ -378,7 +378,7 @@ bool http_save_config()
     if(webServer.method() == HTTP_POST && webServer.hasArg("save")) {
         String save = webServer.arg("save");
 
-        JsonDocument settings;
+        JsonDocument settings(&haspJsonAllocator);
         for(int i = 0; i < webServer.args(); i++) settings[webServer.argName(i)] = webServer.arg(i);
 
         if(save == FP_HASP) {
@@ -569,7 +569,7 @@ static void webHandleApi()
 { // http://plate01/api
     if(!http_is_authenticated("api")) return;
 
-    JsonDocument doc;
+    JsonDocument doc(&haspJsonAllocator);
     String contentType = http_get_content_type(F(".json"));
     String endpoint((char*)0);
     endpoint = webServer.pathArg(0);
@@ -740,7 +740,7 @@ static void webHandleApiConfig()
         return;
     }
 
-    JsonDocument doc;
+    JsonDocument doc(&haspJsonAllocator);
     JsonObject settings;
     // String contentType = http_get_content_type(F(".json"));
     String endpoint((char*)0);
@@ -899,7 +899,7 @@ static void http_handle_about()
 <span v-if="model.l && !!model.l" v-t="'about.' + model.l"></span></p>
 </template>
 
-<h3>openHASP</h3><p>Copyright 2019-2024 Francis Van Roie</br>MIT License</p>
+<h3>openHASP</h3><p>Copyright 2019-2026 Francis Van Roie</br>MIT License</p>
 <p v-t="'about.clause1'"></p>
 <p v-t="'about.clause2'"></p>
 <p v-t="'about.clause3'"></p>
@@ -1113,7 +1113,7 @@ static inline int handleFilesystemFile(String path)
         configFile = FPSTR(FP_HASP_CONFIG_FILE);
 
         if(path.endsWith(configFile.c_str())) { // "//config.json" is also a valid path!
-            JsonDocument settings;
+            JsonDocument settings(&haspJsonAllocator);
             DeserializationError error = configParseFile(configFile, settings);
 
             if(error) return 500; // Internal Server Error
