@@ -32,6 +32,7 @@ user_config_override.h
 platformio_override.ini
 user_setups/active/*
 user_setups/custom/*
+!user_setups/custom/e33r35t.ini
 build_output/*
 build_output/firmware/*.bin
 build_output/firmware/*.exe
